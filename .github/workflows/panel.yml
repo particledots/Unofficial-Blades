@@ -1,0 +1,21 @@
+name: Panel picture (macOS)
+on:
+  workflow_dispatch:
+jobs:
+  panel:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCOPY_PLUGIN_AFTER_BUILD=OFF
+      - name: Draw the panel and print it as text (base64) into the log
+        run: |
+          cmake --build build --target blades_snapshot -j4
+          ./build/blades_snapshot_artefacts/Release/blades_snapshot panel.png
+          ls -l panel.png
+          sips -Z 640 -s format jpeg -s formatOptions 45 panel.png --out panel.jpg
+          ls -l panel.png panel.jpg
+          base64 -i panel.jpg | tr -d '\n' > panel.b64
+          wc -c panel.b64
+          split -b 4000 -a 2 panel.b64 chunk_
+          for f in chunk_*; do echo "::notice title=png-$f::$(cat $f)"; done

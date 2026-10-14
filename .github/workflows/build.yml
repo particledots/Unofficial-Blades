@@ -1,0 +1,81 @@
+name: Build plugin (macOS)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:      # adds a "Run workflow" button in the Actions tab
+
+jobs:
+  build-macos:
+    runs-on: macos-14     # Apple silicon runner
+    defaults:
+      run:
+        shell: bash .github/wrap.sh {0}   # same as plain bash, plus a readable error annotation when a step fails
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCOPY_PLUGIN_AFTER_BUILD=OFF -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Tests of the filter model (circuit numbers, frequency response against the analytic solution, resonance, drive, topology, stability, FM, link)
+        run: |
+          cmake --build build --target blades_test -j4
+          ./build/blades_test
+
+      - name: Picture of the panel (does not stop the build if it fails)
+        continue-on-error: true
+        run: |
+          cmake --build build --target blades_snapshot -j4
+          ./build/blades_snapshot_artefacts/Release/blades_snapshot panel.png
+          ls -l panel.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: panel-picture
+          path: panel.png
+          if-no-files-found: ignore
+
+      - name: Build AU + VST3
+        run: cmake --build build --target UnofficialBlades_AU UnofficialBlades_VST3 -j4
+
+      - name: Ad-hoc sign (lets Apple silicon load an unsigned build)
+        run: |
+          for b in build/UnofficialBlades_artefacts/Release/AU/*.component build/UnofficialBlades_artefacts/Release/VST3/*.vst3; do
+            codesign --force --deep -s - "$b"
+          done
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -R build/UnofficialBlades_artefacts/Release/AU/*.component dist/
+          cp -R build/UnofficialBlades_artefacts/Release/VST3/*.vst3 dist/
+          cp README.md dist/README.md
+          lipo -archs dist/*.component/Contents/MacOS/*
+          # Show the minimum macOS version baked into each slice (should say 11.0):
+          for a in arm64 x86_64; do echo "== $a"; lipo -thin $a dist/*.component/Contents/MacOS/* -output /tmp/slice_$a; otool -l /tmp/slice_$a | grep -A4 -E "LC_BUILD_VERSION|LC_VERSION_MIN" | grep -E "minos|version"; done
+          cat > dist/INSTALL.txt <<'TXT'
+          1. Unzip.
+          2. Open Terminal and run:   xattr -dr com.apple.quarantine ~/Downloads/Unofficial-Blades-macOS/*
+             (adjust the path if you unzipped elsewhere; this clears the "downloaded from internet" block)
+          3. Copy "Unofficial Blades.component" to  ~/Library/Audio/Plug-Ins/Components/
+             Copy "Unofficial Blades.vst3"       to  ~/Library/Audio/Plug-Ins/VST3/
+          4. In Logic: Settings > Plug-in Manager > rescan. Look for "particledots: Unofficial Blades"
+             (it is a normal audio effect; put it on an audio or instrument track).
+          5. Routing buttons (top): MONO IN > MIX OUT (default: both channels in are summed, the result is the mix output, on both channels),
+             STEREO: L > 1, R > 2 (left goes through filter 1, right through filter 2, each comes out on its own side),
+             MONO IN > SPLIT OUT (one input, filter 1 on the left, filter 2 on the right).
+          6. Per filter: FREQUENCY, RESONANCE (self-oscillates above about 86 %), MORPH (LP > BP > HP), LEVEL (input level; 62 % is unity), DRIVE (0 = clean; more folds the signal).
+             TOPOLOGY (mix output only): 0 = filter 1 into filter 2, middle = parallel, 100 = filter 1 alone.
+             LINK 2 TO 1: filter 2 follows filter 1's frequency; its frequency knob becomes OFFSET (octaves).
+             FM 1 / FM 2: send a track to this plug-in's sidechain input and turn them up (the sidechain signal moves the frequency).
+             The plug-in reports about 31 samples of delay to Logic (its oversampling filters).
+          TXT
+          ditto -c -k --keepParent dist Unofficial-Blades-macOS.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Unofficial-Blades-macOS
+          path: Unofficial-Blades-macOS.zip
