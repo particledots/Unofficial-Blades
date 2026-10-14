@@ -21,7 +21,8 @@ jobs:
       - name: Tests of the filter model (circuit numbers, frequency response against the analytic solution, resonance, drive, topology, stability, FM, link)
         run: |
           cmake --build build --target blades_test -j4
-          ./build/blades_test
+          ./build/blades_test | tee /tmp/blades_test.log
+          echo "::notice title=test-result::$(grep -E 'checks,|FAIL' /tmp/blades_test.log | head -5 | tr '\n' ' ') $(grep -E 'worst relative|largest output|speed' /tmp/blades_test.log | tr '\n' ' ')"
 
       - name: Picture of the panel (does not stop the build if it fails)
         continue-on-error: true
@@ -54,8 +55,9 @@ jobs:
           cp -R build/UnofficialBlades_artefacts/Release/VST3/*.vst3 dist/
           cp README.md dist/README.md
           lipo -archs dist/*.component/Contents/MacOS/*
+          echo "::notice title=archs::AU $(lipo -archs dist/*.component/Contents/MacOS/*) / VST3 $(lipo -archs dist/*.vst3/Contents/MacOS/*)"
           # Show the minimum macOS version baked into each slice (should say 11.0):
-          for a in arm64 x86_64; do echo "== $a"; lipo -thin $a dist/*.component/Contents/MacOS/* -output /tmp/slice_$a; otool -l /tmp/slice_$a | grep -A4 -E "LC_BUILD_VERSION|LC_VERSION_MIN" | grep -E "minos|version"; done
+          for a in arm64 x86_64; do echo "== $a"; lipo -thin $a dist/*.component/Contents/MacOS/* -output /tmp/slice_$a; otool -l /tmp/slice_$a | grep -A4 -E "LC_BUILD_VERSION|LC_VERSION_MIN" | grep -E "minos|version"; echo "::notice title=minos-$a::$(otool -l /tmp/slice_$a | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN' | grep -E 'minos|version' | tr '\n' ' ')"; done
           cat > dist/INSTALL.txt <<'TXT'
           1. Unzip.
           2. Open Terminal and run:   xattr -dr com.apple.quarantine ~/Downloads/Unofficial-Blades-macOS/*
