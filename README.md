@@ -85,6 +85,12 @@ The reference formulas in the tests use their own literal constants, so a wrong 
 GitHub Actions on a macOS runner (`.github/workflows/build.yml`) builds a universal (arm64 + x86_64, macOS 11+) AU and VST3, runs the tests, and packages
 `Unofficial-Blades-macOS` with an `INSTALL.txt`.
 
+## Build result (macOS runner)
+
+GitHub Actions run 38657211652: all 420 checks passed on the Mac runner, and the AU and VST3 are universal (x86_64 + arm64, minimum macOS 11.0).
+In the speed test, 10 s of audio through one stereo-linked unit took 0.49 s on the runner (about 5 % of one core).
+**Not checked:** loading in Logic on the M4 or the Intel Mac, MIDI/automation behaviour, and anything about how it sounds.
+
 ## Licence and credit
 
 The model is written from the published hardware design files of Blades (design by Émilie Gillet). The drawing is marked "cc-by-sa"; Mutable Instruments
