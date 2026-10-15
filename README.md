@@ -5,7 +5,7 @@ hardware, so this is not a port of code: it is a model of the circuit, written f
 endorsed by the module's makers.
 
 **Status, plainly:**
-* Built and tested on Linux with the tests listed below. See the bottom of this file for the macOS build result.
+* Built and tested on Linux with the tests listed below. The macOS build result is in the "Build result" section below.
 * **Not yet loaded in Logic. Not yet listened to. Nobody has compared it with the hardware.** The tests check that the code does what the circuit
   *equations* (read off the drawing) say, and that the numbers worked out by hand from the drawing came out as calculated. They cannot say whether it sounds
   like the real module. That is for Bryn to judge by ear.
