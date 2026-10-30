@@ -75,6 +75,11 @@ jobs:
              FM 1 / FM 2: send a track to this plug-in's sidechain input and turn them up (the sidechain signal moves the frequency).
              The plug-in reports about 31 samples of delay to Logic (its oversampling filters).
           TXT
+          # Easy installer for Logic (double-click; same file in every Unofficial plugin)
+          cp tools/install/Install-Unofficial-Plugin.command dist/
+          chmod +x dist/Install-Unofficial-Plugin.command
+          if [ -f dist/INSTALL.txt ]; then printf '\nEASY INSTALL (Logic, Audio Unit): double-click Install-Unofficial-Plugin.command in this folder. It asks for your Mac password once.\n' >> dist/INSTALL.txt; fi
+          [ -x dist/Install-Unofficial-Plugin.command ] || { echo "::error::PACKAGE missing Install-Unofficial-Plugin.command"; exit 1; }
           ditto -c -k --keepParent dist Unofficial-Blades-macOS.zip
 
       - uses: actions/upload-artifact@v4
